@@ -1,0 +1,4 @@
+interface:
+  display_name: "Grill Me Goal"
+  short_description: "Create researched goal docs and acceptance criteria"
+  default_prompt: "Use $grill-me-goal to research and define a repo-local long-running goal package."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ripple Check"
+  short_description: "Deep ripple-effect analysis, test-first fixes across all externalities"
+  default_prompt: "Use $ripple-check to trace the blast radius of my recent changes, fix every ripple test-first, and cover all externalities."
