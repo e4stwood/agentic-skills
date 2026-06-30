@@ -1,13 +1,13 @@
 ---
 name: grill-me-goal
-description: Create research-grounded, test-driven, end-to-end long-running goal packages with a short goal prompt, repo-local docs, extensive batched multiple-choice clarification, codebase research, internet/API research, and detailed evidence-gated acceptance criteria. Use when the user wants to define, sharpen, persist, resume, audit, or run a multi-session goal that may take many hours or hundreds of hours and must be fully implemented end to end.
+description: Create research-grounded, test-driven, end-to-end long-running goal packages with a short goal prompt, repo-local docs, 2-10 rounds of extensive batched multiple-choice clarification, codebase/subagent research, internet/API research, and detailed evidence-gated acceptance criteria. Use when the user wants to define, sharpen, persist, resume, audit, or run a multi-session goal that may take many hours or hundreds of hours and must be fully implemented end to end.
 ---
 
 # Grill Me Goal
 
 ## Overview
 
-Turn a vague long-running objective into a durable, repo-local goal package that a fresh agent can execute for hundreds of hours without chat history. The package must be grounded in codebase inspection, external research where relevant, batched user decisions, and detailed acceptance criteria that are **test-driven, evidence-gated, and end-to-end complete**.
+Turn a vague long-running objective into a durable, repo-local goal package that a fresh agent can execute for hundreds of hours without chat history. The package must be grounded in codebase inspection, external research where relevant, multiple rounds of batched user decisions, and detailed acceptance criteria that are **test-driven, evidence-gated, and end-to-end complete**.
 
 This skill is intentionally output-heavy. Prefer writing structured documentation over keeping reasoning in chat. The default destination is:
 
@@ -25,6 +25,22 @@ docs/<goal-slug>/
 ```
 
 If the repo already has a stronger planning convention, follow it while preserving this file split.
+
+## Forward Progress Mandate
+
+Every interaction must materially advance the goal package or the goal itself. If the user asks for status, answer briefly and then perform, queue, or identify the next concrete progress action unless the user explicitly asks to pause, stop, or only report status.
+
+Forward progress means one or more of:
+
+- Discovering truth from the repo, docs, tests, CI, external APIs, or primary sources.
+- Launching or integrating bounded subagent side missions when available and allowed.
+- Asking the next required clarification batch.
+- Writing or improving the docs package.
+- Completing one A/C with evidence.
+- Removing a blocker or documenting a precise unblock path.
+- Updating evidence, risks, decisions, or the execution log.
+
+If blocked, record the blocker, add the smallest unblock action to the package, use subagents for side research/verification if available, and continue with the next unblocked useful task. Never treat uncertainty as permission to stop; turn uncertainty into research, questions, assumptions, or A/Cs.
 
 ## Three Non-Negotiable Doctrines
 
@@ -74,18 +90,28 @@ A feature is done only when it works through the entire stack in a realistic run
 ## Research-First Workflow
 
 1. Locate the repo root and inspect existing docs, plans, tickets, architecture notes, tests, package manifests, CI, and related code before asking the user for details already discoverable locally.
-2. When subagents or delegated workers are available and tool policy/user authorization permits it, spawn parallel research tracks. Good tracks include: codebase architecture, existing behavior/tests, domain/API specs, security/ops risk, product/user workflows, and **the current test harness/CI and how features are run end to end**. If subagents are unavailable, perform the same research locally.
+2. When subagents or delegated workers are available and tool policy/user authorization permits it, **always use multiple parallel side-mission research tracks** for non-overlapping questions. Good tracks include: codebase architecture, existing behavior/tests, domain/API specs, security/ops risk, product/user workflows, and **the current test harness/CI and how features are run end to end**. Keep the main agent responsible for synthesis and forward progress. If subagents are unavailable, perform the same research locally instead of stopping.
 3. Do internet research for external APIs, SDKs, protocol specs, platform limits, current best practices, pricing/rate limits, migration guides, compliance constraints, and known failure modes whenever the goal depends on facts that may have changed. Prefer official docs, standards, vendor changelogs, source repos, and primary references. Capture links and access dates in `research.md`.
 4. Synthesize what is known into `context.md` and `research.md` before finalizing the acceptance criteria.
 5. Design the test and end-to-end strategy in `test-plan.md` (frameworks, how to run tests, how to run the whole app, what an E2E pass looks like per milestone) **before** writing the A/Cs, so each A/C can name its test and verification.
-6. Ask batched multiple-choice questions to resolve decisions that research cannot settle. Ask as many useful questions at once as the interface allows; default to 8-20 questions per batch in chat. Use one-at-a-time questioning only when the user explicitly asks for it or when the answer to one question determines the next set.
+6. Ask **2-10 rounds** of batched multiple-choice questions to resolve decisions that research cannot settle. Each round should contain many useful questions at once; default to 8-20 questions per batch in chat unless the interface constrains length. Use one-at-a-time questioning only when the user explicitly asks for it or when one answer truly determines the next set. Recommendations are advisory only: never silently apply the recommended option, never assume option A, and never default unanswered questions unless the user explicitly says to use recommended defaults.
 7. Draft the goal package under `docs/<goal-slug>/`. Keep the short goal prompt in `goal.md`; keep the lengthy checklist in `ac.md`; keep supporting truth in the other files.
 8. Audit the package for specificity, test coverage, evidence requirements, end-to-end gates, source grounding, and immediate executability. Revise until a fresh agent can continue from the docs alone.
 9. If the user asks to start work, set the long-running goal prompt to point at `docs/<goal-slug>/goal.md`, `docs/<goal-slug>/ac.md`, and `docs/<goal-slug>/test-plan.md`.
 
 ## Parallel Research Tracks
 
-Use subagents aggressively for research when allowed. Keep tracks independent and ask each researcher for concrete citations, file paths, commands, and uncertainties. Do not ask them for vague opinions.
+Use subagents aggressively for research when allowed. Treat them as bounded side missions that feed the goal, not as a replacement for focused synthesis. Keep tracks independent and ask each researcher for concrete citations, file paths, commands, and uncertainties. Do not ask them for vague opinions.
+
+Default to 3-6 parallel side missions for substantial goals when tools and policy allow it. Hard cap side missions at 8 concurrent agents unless the user explicitly asks for more. Good side missions have a narrow question, an explicit stop condition, a time budget or result budget, and a required artifact to merge into `context.md`, `research.md`, `test-plan.md`, `risks.md`, or `questions.md`. The main agent must stay focused on the current package phase and integrate findings; subagents must not silently redefine the goal or acceptance criteria.
+
+Each side mission prompt must specify:
+
+- Scope: the exact question or file/domain area to inspect.
+- Output limit: the maximum number of findings, sources, or files to report.
+- Stop condition: what counts as enough research.
+- Merge target: which package doc should receive the finding.
+- Non-authority: the side mission informs the main agent but does not change scope or mark A/Cs complete.
 
 Useful delegation prompts:
 
@@ -117,6 +143,18 @@ Prefer primary sources. Use secondary sources only to discover leads or understa
 
 Question batches should be dense and decision-oriented. Each question should be answerable quickly while still exposing real tradeoffs.
 
+Run multiple rounds:
+
+- Minimum: 2 rounds before finalizing any goal package.
+- Maximum: 10 rounds unless the user explicitly asks for more.
+- Default: 3-5 rounds for normal substantial goals; 6-10 rounds for ambiguous, high-risk, multi-system, or hundred-hour goals.
+- Per round: ask 8-20 questions when possible. Use fewer only when the interface or user requires it.
+- Per question: offer 3-5 meaningful options. Add "Other / custom" when the decision space is not closed.
+- Recommendations: include a recommended option with a reason, but treat it as advice, not an answer.
+- Option ordering: do not always put the recommendation in option A. Distribute recommended options naturally across A/B/C/D/E.
+- Unanswered questions: leave them unresolved or ask a follow-up round. Do not assume option A. Do not apply recommended defaults unless the user explicitly authorizes "use recommended defaults".
+- Finalization gate: before writing final A/Cs, either every material question is answered, explicitly defaulted by the user, or captured as an unresolved assumption with validation A/Cs.
+
 Use this shape:
 
 ```markdown
@@ -127,13 +165,15 @@ Use this shape:
    - A. <Option>
    - B. <Option>
    - C. <Option>
-   - Recommended: <A/B/C> - <short reason>
+   - D. <Option when useful>
+   - Recommended: <A/B/C/D> - <short reason; advisory only, not auto-selected>
 
 2. <Next decision?>
    - Why this matters:
    - A.
    - B.
    - C.
+   - D.
    - Recommended:
 ```
 
@@ -150,7 +190,7 @@ Ask about these areas before finalizing:
 - Manual QA, rollout, rollback, monitoring, and incident response.
 - Sequencing, milestones, phase gates, dependencies, risks, and stopping rules.
 
-Record every answered question in `questions.md`. Convert important answers into `decisions.md`, `goal.md`, `test-plan.md`, or `ac.md`; do not leave decisions only in chat.
+Record every answered question in `questions.md`. Convert important answers into `decisions.md`, `goal.md`, `test-plan.md`, or `ac.md`; do not leave decisions only in chat. For unanswered questions, record `Status: unanswered` and either ask in the next round or create an assumption with a validation A/C. Never record a recommendation as the user's answer.
 
 ## Documentation Package
 
@@ -188,12 +228,14 @@ SOURCE OF TRUTH: docs/<goal-slug>/goal.md, ac.md, and test-plan.md. Work only fr
 
 HOW TO WORK — non-negotiable:
 1. Take exactly ONE unchecked, unblocked A/C at a time, in phase order. Pick the smallest slice that delivers real, user-visible end-to-end behavior. Never start a later phase while the current phase gate is red.
-2. TDD every behavior change. Adopt the /tdd ethos (invoke /tdd if available): RED — write one failing test that describes the behavior and confirm it fails; GREEN — write the minimal code to pass; REFACTOR — clean up with the suite green. Never refactor while red. Test behavior through public interfaces, in vertical slices (one test → one change), never all-tests-then-all-code.
-3. TDD is NOT finished when unit tests go green. You must then PHYSICALLY VERIFY the feature in the running app: launch it and drive the real user path yourself — click through it in a browser for web work, or run the real device/CLI/service otherwise — and watch it actually work end to end through the full stack (UI → API → data → back). Capture proof: a screenshot, screen recording, real response, or log of that live run.
-4. Wire every feature end to end. No stubbed, mocked, or half-connected seams left as "done". If you must stub temporarily, there is an A/C to remove it before the phase gate.
-5. Evidence before ticking. Only check an A/C box after its Evidence field holds concrete proof (the physical run above, test output, command output, links). "Should work" is never evidence — run it.
-6. Phase gates. Before advancing a phase, run its end-to-end gate AND the full regression suite, verify the whole flow live in the app, capture evidence, then check the gate.
-7. Keep the docs live: update ac.md evidence, execution-log.md (red→green→refactor + the physical run), decisions.md on scope change, and risks.md as risks move.
+2. Always make forward progress. In every turn, complete one concrete action: research, ask/answer the next clarification batch, implement an A/C, verify evidence, update docs, unblock a dependency, or move to the next unblocked A/C. If blocked, document the blocker and continue on the next useful unblocked task.
+3. Use subagents for side missions whenever available and allowed: codebase mapping, API/spec research, risk review, test-harness discovery, and verification audits. Keep those missions bounded and integrate their findings into the docs. The main thread stays focused on the current A/C or package phase.
+4. TDD every behavior change. Adopt the /tdd ethos (invoke /tdd if available): RED — write one failing test that describes the behavior and confirm it fails; GREEN — write the minimal code to pass; REFACTOR — clean up with the suite green. Never refactor while red. Test behavior through public interfaces, in vertical slices (one test → one change), never all-tests-then-all-code.
+5. TDD is NOT finished when unit tests go green. You must then PHYSICALLY VERIFY the feature in the running app: launch it and drive the real user path yourself — click through it in a browser for web work, or run the real device/CLI/service otherwise — and watch it actually work end to end through the full stack (UI → API → data → back). Capture proof: a screenshot, screen recording, real response, or log of that live run.
+6. Wire every feature end to end. No stubbed, mocked, or half-connected seams left as "done". If you must stub temporarily, there is an A/C to remove it before the phase gate.
+7. Evidence before ticking. Only check an A/C box after its Evidence field holds concrete proof (the physical run above, test output, command output, links). "Should work" is never evidence — run it.
+8. Phase gates. Before advancing a phase, run its end-to-end gate AND the full regression suite, verify the whole flow live in the app, capture evidence, then check the gate.
+9. Keep the docs live: update ac.md evidence, execution-log.md (red→green→refactor + the physical run), decisions.md on scope change, and risks.md as risks move.
 
 DONE means: every A/C and every phase gate is checked with evidence, the full suite is green, and the entire feature has been physically run and observed working end to end in the real app. Until then, it is not done — keep going.
 ```
@@ -305,8 +347,9 @@ Include:
 
 - Batched multiple-choice questions.
 - User answers.
-- Recommended defaults when unanswered.
-- Assumptions created from unanswered questions.
+- Recommended options clearly marked as advisory, not answers.
+- Unanswered questions with `Status: unanswered`, or explicit user authorization to use recommended defaults.
+- Assumptions created from unanswered questions, each with a validation A/C.
 - Follow-up questions that remain blocked.
 
 ### decisions.md
@@ -372,9 +415,10 @@ Before handing the package to the user:
 - `context.md` reflects actual repo inspection, not guesses.
 - `research.md` cites primary sources for external/API facts.
 - `test-plan.md` gives runnable commands for every test layer and for a real end-to-end run.
-- `questions.md` contains batched multiple-choice questions and answers or assumptions.
+- `questions.md` contains 2-10 rounds of batched multiple-choice questions, with user answers, unanswered decisions, or explicit user-authorized defaults. It must not silently treat recommendations as answers.
 - `ac.md` is split into phases, each ending in an end-to-end phase gate, with detailed, test-backed, evidence-gated, independently checkable criteria.
 - Every behavior-changing A/C names a test-first test; every milestone has an end-to-end gate.
+- The goal prompt forces forward progress, bounded subagent side missions when available, and focus on the current phase/A/C.
 - Every major deliverable, edge case, migration, test, doc, rollout, and rollback concern has A/C coverage when relevant.
 - The first unchecked A/C is immediately actionable and starts with a failing test where applicable.
 - A fresh agent can resume from the docs without chat history.

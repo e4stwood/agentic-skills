@@ -34,9 +34,10 @@ A package under `docs/<goal-slug>/`:
 
 1. **Research first** — inspect the repo (docs, tests, CI, run harness) and research external API/SDK specs, limits, and current best practices; fan out to subagents in parallel when available.
 2. **Design the test/E2E strategy** in `test-plan.md` before writing criteria.
-3. **Batched multiple-choice questions** — many decisions at once (default 8–20 per batch), not one at a time.
+3. **Batched multiple-choice questions** — 2-10 rounds, many decisions at once (default 8-20 per batch), not one at a time. Recommendations are advisory only: the skill must never assume option A or silently apply defaults unless the user explicitly says to use recommended defaults.
 4. **Write the package** — 100–300 phased, test-backed, evidence-gated criteria for large goals.
-5. **Audit** until a fresh agent can resume from the docs alone.
+5. **Forward progress** — the generated goal prompt forces every execution turn to complete a concrete action, use bounded subagent side missions when available, and stay focused on the current phase/A/C.
+6. **Audit** until a fresh agent can resume from the docs alone.
 
 ## Companion: `/tdd`
 
